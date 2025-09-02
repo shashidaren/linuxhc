@@ -3,11 +3,11 @@
 
 check_fs_mounts() {
   local lines mp fstype opts used warn=0
-  # Filter only common local FS types
-  lines=$(run_cmd "awk '$3 ~ /(ext[234]|xfs|btrfs|zfs)/ {print $2" "$3" "$4}' /proc/mounts | sort -u") || true
+  # Filter only common local FS types - fix awk quoting
+  lines=$(run_cmd "awk '\$3 ~ /(ext[234]|xfs|btrfs|zfs)/ {print \$2" "\$3" "\$4}' /proc/mounts | sort -u") || true
   while read -r mp fstype opts; do
     [[ -z "$mp" ]] && continue
-    used=$(run_cmd "df -P "$mp" | awk 'END{gsub("%","",$5); print $5}'") || used=""
+    used=$(run_cmd "df -P \"$mp\" | awk 'END{gsub("%","",\$5); print \$5}'") || used=""
     [[ -z "$used" ]] && continue
     if [[ "$opts" == *",ro,"* || "$opts" == ro,* || "$opts" == *,ro ]]; then
       add_finding "CRIT" "Filesystem Read-Only" "$mp ($fstype) is mounted read-only"

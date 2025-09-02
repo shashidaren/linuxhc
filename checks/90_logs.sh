@@ -7,11 +7,11 @@ check_logs() {
   if run_cmd "command -v journalctl >/dev/null"; then
     errc=$(run_cmd "journalctl -p err -S -1h --no-pager 2>/dev/null | wc -l") || errc=0
   else
-    # Fallback to syslog/messages
-    if run_cmd "test -f /var/log/syslog"; then
-      errc=$(run_cmd "grep -i 'error' /var/log/syslog | tail -n 500 | wc -l") || errc=0
-    elif run_cmd "test -f /var/log/messages"; then
+    # Fallback to syslog/messages (RHEL systems often use /var/log/messages)
+    if run_cmd "test -f /var/log/messages"; then
       errc=$(run_cmd "grep -i 'error' /var/log/messages | tail -n 500 | wc -l") || errc=0
+    elif run_cmd "test -f /var/log/syslog"; then
+      errc=$(run_cmd "grep -i 'error' /var/log/syslog | tail -n 500 | wc -l") || errc=0
     fi
   fi
 
@@ -21,9 +21,9 @@ check_logs() {
     add_finding "OK" "Recent Log Errors" "$errc errors in last hour"
   fi
 
-  # OOM killer
+  # OOM killer - separate grep options for RHEL compatibility
   local ooms
-  ooms=$(run_cmd "dmesg | grep -Ei 'Out of memory|oom-killer' | wc -l") || ooms=0
+  ooms=$(run_cmd "dmesg | grep -E -i 'Out of memory|oom-killer' | wc -l") || ooms=0
   if [[ "$ooms" =~ ^[0-9]+$ && "$ooms" -gt 0 ]]; then
     add_finding "WARN" "OOM Events" "$ooms OOM-related messages in dmesg"
   else
