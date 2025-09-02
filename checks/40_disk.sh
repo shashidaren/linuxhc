@@ -1,14 +1,16 @@
 # Disk and inode usage on root; read-only fs check
 check_disk() {
   local du iu
-  du=$(run_cmd "df -P / | awk 'END{gsub("%","",$5); print $5}'") || true
+  # Separate df -P and df -i calls for better compatibility
+  du=$(run_cmd "df -P / | awk 'END{gsub("%","",\$5); print \$5}'") || true
   if is_numeric "$du" && [[ "$du" -gt "$DISK_THRESHOLD" ]]; then
     add_finding "WARN" "Disk Usage (/)" "/ usage ${du}% > ${DISK_THRESHOLD}%"
   else
     add_finding "OK" "Disk Usage (/)" "/ usage ${du:-unknown}%"
   fi
 
-  iu=$(run_cmd "df -Pi / | awk 'END{gsub("%","",$5); print $5}'") || true
+  # Separate inode check for RHEL/Fedora compatibility
+  iu=$(run_cmd "df -i / | awk 'END{gsub("%","",\$5); print \$5}'") || true
   if is_numeric "$iu" && [[ "$iu" -gt "$INODE_THRESHOLD" ]]; then
     add_finding "WARN" "Inode Usage (/)" "Inodes ${iu}% > ${INODE_THRESHOLD}%"
   else

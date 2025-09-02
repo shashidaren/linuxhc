@@ -1,15 +1,18 @@
-# Package update availability
+# Package update availability - optimized for RHEL/Fedora
 check_updates() {
   local pm count=""
-  if run_cmd "command -v apt >/dev/null"; then
-    pm="apt"
-    count=$(run_cmd "apt list --upgradable 2>/dev/null | grep -v '^Listing' | wc -l") || count=""
-  elif run_cmd "command -v dnf >/dev/null"; then
+  # Prioritize RHEL/Fedora package managers
+  if run_cmd "command -v dnf >/dev/null"; then
     pm="dnf"
-    count=$(run_cmd "dnf -q check-update | awk 'NF && $1 !~ /^(Last|Obsoleting)/ {c++} END{print c+0}'") || count=""
+    # Better dnf check for RHEL/Fedora systems
+    count=$(run_cmd "dnf -q check-update 2>/dev/null | grep -v '^Last' | grep -c '^[a-zA-Z]' || echo 0") || count="0"
   elif run_cmd "command -v yum >/dev/null"; then
     pm="yum"
-    count=$(run_cmd "yum -q check-update | awk 'NF && $1 !~ /^(Loaded|Obsoleting)/ {c++} END{print c+0}'") || count=""
+    # Better yum check for older RHEL
+    count=$(run_cmd "yum -q check-update 2>/dev/null | grep -v '^Loaded' | grep -c '^[a-zA-Z]' || echo 0") || count="0"
+  elif run_cmd "command -v apt >/dev/null"; then
+    pm="apt"
+    count=$(run_cmd "apt list --upgradable 2>/dev/null | grep -v '^Listing' | wc -l") || count=""
   elif run_cmd "command -v zypper >/dev/null"; then
     pm="zypper"
     count=$(run_cmd "zypper -q lu | sed '1,2d' | wc -l") || count=""
@@ -18,7 +21,8 @@ check_updates() {
     if run_cmd "command -v checkupdates >/dev/null"; then
       count=$(run_cmd "checkupdates 2>/dev/null | wc -l") || count=""
     else
-      count=$(run_cmd "pacman -Sup 2>/dev/null | grep -cE '^http'") || count=""
+      # Separate grep options for compatibility
+      count=$(run_cmd "pacman -Sup 2>/dev/null | grep -E '^http' | wc -l") || count=""
     fi
   fi
 

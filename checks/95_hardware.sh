@@ -16,20 +16,21 @@ check_hardware() {
     local lvh
     lvh=$(run_cmd "lvs --noheadings -o lv_name,lv_attr,lv_health_status 2>/dev/null | sed 's/^/  '") || lvh=""
     if [[ -n "$lvh" ]]; then
-      add_finding "INFO" "LVM" $'Detected LVs:
-'"$lvh"
+      add_finding "INFO" "LVM" $'Detected LVs:\n'"$lvh"
     else
       add_finding "OK" "LVM" "No LVs detected"
     fi
   fi
 
-  # SMART quick health (requires smartctl)
+  # SMART quick health (requires smartctl) - fix for RHEL/Fedora
   if run_cmd "command -v smartctl >/dev/null"; then
     local disks out bad=0
-    disks=$(run_cmd "lsblk -ndo NAME,TYPE | awk '$2=="disk"{print $1}'") || disks=""
+    # Separate lsblk options for RHEL compatibility
+    disks=$(run_cmd "lsblk -n -d -o NAME,TYPE | awk '\$2=="disk"{print \$1}'") || disks=""
     while read -r d; do
       [[ -z "$d" ]] && continue
-      out=$(run_cmd "smartctl -H /dev/$d 2>/dev/null | awk -F: '/SMART overall-health self-assessment test result/ {print $2}' | xargs") || out=""
+      # Fix awk quoting for SMART check
+      out=$(run_cmd "smartctl -H /dev/$d 2>/dev/null | awk -F: '/SMART overall-health self-assessment test result/ {print \$2}' | xargs") || out=""
       if [[ "$out" =~ (PASSED|OK) ]]; then :; else bad=$((bad+1)); fi
     done <<< "$disks"
     if [[ "$bad" -gt 0 ]]; then
